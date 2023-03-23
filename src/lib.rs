@@ -24,7 +24,7 @@ impl Pinger {
         Ok(Self {
             payload,
             chcksum,
-            sock: sock.into(),
+            sock,
         })
     }
 
@@ -35,7 +35,9 @@ impl Pinger {
         loop {
             let (resp, _) = self.sock.rcv_from().or(Err(Error::from(ErrorKind::TimedOut)))?;
             if let Icmpv4Message::EchoReply { identifier, sequence: _, payload } = resp.message {
-                if identifier != 42 || payload.iter().sum::<u8>() != self.chcksum { return Err(Error::from(ErrorKind::InvalidData)); }
+                if identifier != 42 || payload.iter().sum::<u8>() != self.chcksum {
+                    return Err(Error::from(ErrorKind::InvalidData));
+                }
                 return Ok(());
             }
             sleep(Duration::from_millis(50));
