@@ -1,4 +1,5 @@
 # Pinger
+Simple library to ping network host by IP address.
 ### Usage
 ```
 use pinger::Pinger;
