@@ -29,12 +29,17 @@ pub struct Pinger {
 impl Pinger {
     pub fn new() -> Result<Self, PingerError> {
         let mut sock = IcmpSocket4::new()?;
-        sock.bind("0.0.0.0".parse::<Ipv4Addr>().unwrap())?;
-        sock.set_timeout(Some(Duration::from_secs(1)));
+        sock.bind("0.0.0.0".parse::<Ipv4Addr>()?)?;
+        // sock.set_timeout(Some(Duration::from_secs(1)));
         Ok(Self {
             payload: vec![0u8],
             sock: RefCell::new(sock),
         })
+    }
+
+    pub fn set_timeout(self, dur: Duration) -> Self {
+        self.sock.borrow_mut().set_timeout(Some(dur));
+        self
     }
 
     pub fn ping(&self, addr: &str) -> Result<(), PingerError> {
