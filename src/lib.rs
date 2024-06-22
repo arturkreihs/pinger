@@ -3,6 +3,8 @@ use std::{net::Ipv4Addr, time::Duration};
 
 use icmp_socket::packet::WithEchoRequest;
 use icmp_socket::*;
+use std::sync::Arc;
+use std::sync::RwLock;
 use std::thread::sleep;
 use thiserror::Error;
 
@@ -23,7 +25,7 @@ pub enum PingerError {
 
 pub struct Pinger {
     payload: Vec<u8>,
-    sock: RefCell<IcmpSocket4>,
+    sock: Arc<RwLock<IcmpSocket4>>,
 }
 
 impl Pinger {
@@ -33,35 +35,39 @@ impl Pinger {
         // sock.set_timeout(Some(Duration::from_secs(1)));
         Ok(Self {
             payload: vec![0u8],
-            sock: RefCell::new(sock),
+            sock: Arc::new(RwLock::new(sock)),
         })
     }
 
-    pub fn set_timeout(self, dur: Duration) -> Self {
-        self.sock.borrow_mut().set_timeout(Some(dur));
-        self
+    pub fn set_timeout(self, dur: Duration) -> Result<Self, PingerError> {
+        self.sock.write().unwrap().set_timeout(Some(dur));
+        Ok(self)
     }
 
-    pub fn ping(&self, addr: &str) -> Result<(), PingerError> {
+    pub async fn ping(&self, addr: &str) -> Result<(), PingerError> {
         let addr = addr.parse::<Ipv4Addr>()?;
         let pkt = Icmpv4Packet::with_echo_request(42, 0, self.payload.clone())
             .map_err(|_| PingerError::PktCreation)?;
-        let mut sock = self.sock.borrow_mut();
-        sock.send_to(addr, pkt)?;
-        loop {
-            let (resp, _) = sock.rcv_from()?;
-            if let Icmpv4Message::EchoReply {
-                identifier: id,
-                sequence: _,
-                payload: pd,
-            } = resp.message
-            {
-                if id != 42 || pd.first() != Some(&0) {
-                    return Err(PingerError::InvalidResponse);
+        let sock = Arc::clone(&self.sock);
+        let future = tokio::task::spawn_blocking(move || {
+            let mut sock = sock.write().unwrap();
+            sock.send_to(addr, pkt)?;
+            loop {
+                let (resp, _) = sock.rcv_from()?;
+                if let Icmpv4Message::EchoReply {
+                    identifier: id,
+                    sequence: _,
+                    payload: pd,
+                } = resp.message
+                {
+                    if id != 42 || pd.first() != Some(&0) {
+                        return Err(PingerError::InvalidResponse);
+                    }
+                    return Ok(());
                 }
-                return Ok(());
+                sleep(Duration::from_millis(50));
             }
-            sleep(Duration::from_millis(50));
-        }
+        });
+        future.await.unwrap()
     }
 }
