@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::{net::Ipv4Addr, time::Duration};
 
 use icmp_socket::packet::WithEchoRequest;
@@ -68,6 +67,6 @@ impl Pinger {
                 sleep(Duration::from_millis(50));
             }
         });
-        future.await.unwrap()
+        future.await.map_err(|_| PingerError::InvalidResponse)?
     }
 }
