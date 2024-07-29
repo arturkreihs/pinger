@@ -20,6 +20,9 @@ pub enum PingerError {
 
     #[error("creating ICMP packet")]
     PktCreation,
+
+    #[error("RwLock poisoning")]
+    RwLock,
 }
 
 pub struct Pinger {
@@ -31,7 +34,6 @@ impl Pinger {
     pub fn new() -> Result<Self, PingerError> {
         let mut sock = IcmpSocket4::new()?;
         sock.bind("0.0.0.0".parse::<Ipv4Addr>()?)?;
-        // sock.set_timeout(Some(Duration::from_secs(1)));
         Ok(Self {
             payload: vec![0u8],
             sock: Arc::new(RwLock::new(sock)),
@@ -39,7 +41,9 @@ impl Pinger {
     }
 
     pub fn set_timeout(self, dur: Duration) -> Result<Self, PingerError> {
-        self.sock.write().unwrap().set_timeout(Some(dur));
+        self.sock.write()
+            .map_err(|_| PingerError::RwLock)?
+            .set_timeout(Some(dur));
         Ok(self)
     }
 
@@ -49,7 +53,7 @@ impl Pinger {
             .map_err(|_| PingerError::PktCreation)?;
         let sock = Arc::clone(&self.sock);
         let future = tokio::task::spawn_blocking(move || {
-            let mut sock = sock.write().unwrap();
+            let mut sock = sock.write().map_err(|_| PingerError::RwLock)?;
             sock.send_to(addr, pkt)?;
             loop {
                 let (resp, _) = sock.rcv_from()?;
