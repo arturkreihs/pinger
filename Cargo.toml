@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 icmp-socket = "0.2.0"
-thiserror = "1.0.40"
-tokio = { version = "1.38.0", default-features = false, features = ["libc", "macros", "rt-multi-thread", "time"] }
+thiserror = "1.0.69"
+tokio = { version = "1.42.0", default-features = false, features = ["libc", "macros", "rt-multi-thread", "time"] }
