@@ -47,8 +47,7 @@ impl Pinger {
         Ok(self)
     }
 
-    pub async fn ping(&self, addr: &str) -> Result<(), PingerError> {
-        let addr = addr.parse::<Ipv4Addr>()?;
+    pub async fn ping(&self, addr: Ipv4Addr) -> Result<(), PingerError> {
         let pkt = Icmpv4Packet::with_echo_request(42, 0, self.payload.clone())
             .map_err(|_| PingerError::PktCreation)?;
         let sock = Arc::clone(&self.sock);
