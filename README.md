@@ -8,7 +8,7 @@ use std::time::Duration;
 #[tokio::main]
 async fn main() {
     let pinger = Pinger::new().unwrap().set_timeout(Duration::from_secs(2)).unwrap();
-    match pinger.ping("8.8.8.8").await {
+    match pinger.ping("8.8.8.8".into()).await {
         Ok(()) => println!("response received"),
         Err(e) => println!("{:?}", e),
     }
